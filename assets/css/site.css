@@ -259,3 +259,20 @@ legend { font-weight: bold; padding: 0 4px; }
 textarea.export { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 14px; line-height: 1.5; }
 
 .site-foot { margin: 40px 0 0; padding: 16px 0 0; border-top: 1px solid var(--line); font-size: 14px; }
+
+/* 保存したファイルから続ける */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+label.file-btn { position: relative; display: inline-flex; align-items: center; color: #fff; }
+label.file-btn:focus-within { outline: 3px solid #8fb4e8; outline-offset: 2px; }
+.restore-paste { margin: 12px 0 0; }
+.restore-paste summary { min-height: 44px; padding: 8px 0; cursor: pointer; color: var(--accent); }

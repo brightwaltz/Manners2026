@@ -54,6 +54,9 @@
         return false;
       }
     },
+    remove: function (key) {
+      try { global.localStorage.removeItem(MN.PREFIX + key); } catch (e) { /* 使えないブラウザでは何もしない */ }
+    },
     keys: function (sub) {
       var out = [];
       try {
@@ -124,6 +127,187 @@
     return used.length ? "doing" : "todo";
   };
   MN.PROGRESS_LABEL = { todo: "未着手", doing: "進行中", done: "提出ファイル作成済み" };
+
+  /* ---------- 保存したファイルから続ける ---------- */
+
+  // 前に作った提出ファイル（文字列）を読み、この端末の記録に合わせる。中身はブラウザの中だけで扱う。
+  // opts.gameIds（省略時は data/kN.json のゲーム）、opts.confirm（省略時は window.confirm）
+  // 戻り値：{ ok: true, games: ファイルから読んだ挑戦の数, creative: 読み込んだ作るの数, message } か { ok: false, message }
+  MN.restore = {
+    MSG_BAD: "ファイルの形が読み取れませんでした。サイトが作った提出ファイルを選んでください。",
+    MSG_CONFIRM: "いまの入力をファイルの内容で置き換えますか？（キャンセルすると、いまの入力を残し、ゲームの記録だけ読み込みます）",
+
+    parse: function (kadai, text) {
+      var sub;
+      try {
+        sub = JSON.parse(String(text == null ? "" : text).replace(/^﻿/, "").trim());
+      } catch (e) {
+        return { ok: false, message: MN.restore.MSG_BAD };
+      }
+      if (!S.validateSubmission(sub).ok) return { ok: false, message: MN.restore.MSG_BAD };
+      if (sub.kadai !== kadai) {
+        return { ok: false, message: "これは課題" + sub.kadai + "のファイルです。課題" + sub.kadai + "のページで読み込んでください。" };
+      }
+      return { ok: true, sub: sub };
+    },
+
+    // 今の記録とファイルの記録を合わせる。同じ挑戦（t0・t1・score が同じ）は 1 つにし、t0 の順に並べ、
+    // 最大 30 回（最初の挑戦は必ず残す）
+    mergeAttempts: function (current, incoming) {
+      var seen = {};
+      var all = [];
+      (current || []).concat(incoming || []).forEach(function (a) {
+        if (!a || typeof a !== "object") return;
+        var id = [a.t0, a.t1, a.score].join("\u0000");
+        if (seen[id]) return;
+        seen[id] = true;
+        all.push({ t0: a.t0, t1: a.t1, answers: a.answers, score: a.score, max: a.max });
+      });
+      function time(a) { var t = Date.parse(a.t0); return isNaN(t) ? Infinity : t; }
+      all = all.map(function (a, i) { return { a: a, i: i, t: time(a) }; })
+        .sort(function (x, y) { return x.t === y.t ? x.i - y.i : x.t < y.t ? -1 : 1; })
+        .map(function (x) { return x.a; });
+      while (all.length > MN.MAX_ATTEMPTS) all.splice(1, 1);
+      return all;
+    },
+
+    fromText: function (kadai, text, opts) {
+      opts = opts || {};
+      var p = MN.restore.parse(kadai, text);
+      if (!p.ok) return p;
+      var sub = p.sub;
+      var k = kadai;
+
+      // ゲームの記録（data にないゲーム id は捨てる）
+      var data = (MN.data || {})[k];
+      var gameIds = opts.gameIds || (data && data.games ? data.games.map(function (g) { return g.id; }) : []);
+      var nGames = 0;
+      Object.keys(sub.games).forEach(function (gid) {
+        if (gameIds.indexOf(gid) < 0) return;
+        var incoming = sub.games[gid].attempts;
+        if (!incoming.length) return;
+        nGames += incoming.length;
+        MN.store.set(MN.attempts.key(k, gid), MN.restore.mergeAttempts(MN.attempts.list(k, gid), incoming));
+      });
+
+      // 作る：今が空ならファイルの値。今も値があってファイルと違えば、置き換えてよいかを 1 回だけ聞く
+      var C = MN.compose;
+      var registered = C ? C.registered(k) : [];
+      function filled(fid) {
+        if (C) return C.isFilled(k, fid);
+        var saved = MN.creative.get(k, fid) || {};
+        return Object.keys(saved).some(function (f) { return String(saved[f] || "").trim(); });
+      }
+      function current(fid) { return C ? C.valuesOf(k, fid) : (MN.creative.get(k, fid) || {}); }
+      function differs(a, b) {
+        var keys = Object.keys(a).concat(Object.keys(b));
+        return keys.some(function (f) { return String(a[f] == null ? "" : a[f]) !== String(b[f] == null ? "" : b[f]); });
+      }
+      // ファイルの値が空（最初の文のまま）か：一度入れて確かめ、元に戻す
+      function fileFilled(fid) {
+        var key = MN.creative.key(k, fid);
+        var old = MN.store.get(key, null);
+        MN.creative.set(k, fid, sub.creative[fid]);
+        var r = filled(fid);
+        if (old === null) MN.store.remove(key); else MN.store.set(key, old);
+        return r;
+      }
+      // 今が書いてあり、ファイルのほうが空のフォームは触らない
+      var fids = Object.keys(sub.creative).filter(function (fid) {
+        if (registered.length && registered.indexOf(fid) < 0) return false;
+        return !filled(fid) || fileFilled(fid);
+      });
+      var conflicts = fids.filter(function (fid) { return filled(fid) && differs(current(fid), sub.creative[fid]); });
+      var replace = true;
+      if (conflicts.length) {
+        var ask = opts.confirm || global.confirm;
+        replace = !!(ask && ask(MN.restore.MSG_CONFIRM));
+      }
+      var nCreative = 0;
+      if (replace) {
+        fids.forEach(function (fid) {
+          var v = {};
+          Object.keys(sub.creative[fid]).forEach(function (f) { v[f] = sub.creative[fid][f]; });
+          MN.creative.set(k, fid, v);
+          if (filled(fid)) nCreative++;
+        });
+      }
+
+      // 紹介の同意・生成AI：今が未選択ならファイルの値
+      var stKey = "k" + k + ".submit";
+      var st = MN.store.get(stKey, {}) || {};
+      if (st.consent !== true && st.consent !== false) st.consent = sub.consent_showcase;
+      if (st.ai_used !== true && st.ai_used !== false) {
+        st.ai_used = sub.ai_use.used;
+        st.ai_detail = sub.ai_use.detail;
+      }
+      MN.store.set(stKey, st);
+
+      // 最初に開いた日時は早いほう
+      var fv = MN.store.get("first_visit_at", null);
+      var tFile = Date.parse(sub.first_visit_at);
+      var tNow = fv ? Date.parse(fv) : NaN;
+      if (!isNaN(tFile) && (isNaN(tNow) || tFile < tNow)) MN.store.set("first_visit_at", sub.first_visit_at);
+
+      return {
+        ok: true,
+        games: nGames,
+        creative: nCreative,
+        message: "読み込みました：ゲームの記録 " + nGames + " 回、作る " + nCreative + " 件。"
+      };
+    },
+
+    // ④提出の先頭に置く枠
+    mount: function (el, k) {
+      var flashKey = "k" + k + ".restore_msg";
+      var msg = MN.el("div", { "data-role": "restore-msg", "aria-live": "polite" });
+      function show(ok, text) {
+        MN.clear(msg);
+        msg.appendChild(MN.el("div", { class: "notice" + (ok ? " ok" : " ng"), text: text }));
+      }
+      // 読み込んだあとの組み立て直しで、結果を出す
+      var flash = MN.store.get(flashKey, null);
+      if (flash) {
+        MN.store.remove(flashKey);
+        show(true, String(flash));
+      }
+      function run(text) {
+        var r = MN.restore.fromText(k, text);
+        if (!r.ok) { show(false, r.message); return; }
+        show(true, r.message);
+        MN.store.set(flashKey, r.message);
+        global.location.reload();
+      }
+
+      var file = MN.el("input", { type: "file", accept: ".txt,.json,text/plain", class: "visually-hidden", "data-role": "restore-file" });
+      file.addEventListener("change", function () {
+        var f = file.files && file.files[0];
+        file.value = "";
+        if (!f) return;
+        if (f.size > 5 * 1024 * 1024) { show(false, MN.restore.MSG_BAD); return; }
+        var reader = new FileReader();
+        reader.onload = function () { run(String(reader.result || "")); };
+        reader.onerror = function () { show(false, MN.restore.MSG_BAD); };
+        reader.readAsText(f, "utf-8");
+      });
+      var paste = MN.el("textarea", { rows: 6, class: "export", "data-role": "restore-text", "aria-label": "提出ファイルの中身を貼り付ける" });
+      var pasteBtn = MN.el("button", { type: "button", class: "sub", "data-action": "restore-paste" }, "貼り付けた内容を読み込む");
+      pasteBtn.addEventListener("click", function () { run(paste.value); });
+
+      el.appendChild(MN.el("div", { class: "card restore", "data-role": "restore" }, [
+        MN.el("h3", { text: "保存したファイルから続ける" }),
+        MN.el("p", { text: "記録はこの端末のブラウザの中だけにあります。別の端末で続けるときや、記録が消えたときは、前に作った提出ファイルを読み込むと続きからできます。" }),
+        MN.el("div", { class: "actions" }, MN.el("label", { class: "btn file-btn" }, ["提出ファイルを選んで読み込む", file])),
+        MN.el("details", { class: "restore-paste" }, [
+          MN.el("summary", { text: "ファイルを選べないときは" }),
+          MN.el("p", { class: "small", text: "提出ファイルの中身をすべてコピーして、下に貼り付けてください。" }),
+          paste,
+          MN.el("div", { class: "actions" }, pasteBtn)
+        ]),
+        msg
+      ]));
+    }
+  };
 
   /* ---------- 共通 UI ---------- */
 
@@ -253,6 +437,9 @@
     var st = MN.store.get(stKey, {}) || {};
     function save() { MN.store.set(stKey, st); }
     MN.clear(el);
+
+    // 保存したファイルから続ける
+    MN.restore.mount(el, k);
 
     // 完了状況
     var statusBox = MN.el("div", { class: "card", "data-role": "submit-status" });
@@ -430,6 +617,7 @@
     el.appendChild(MN.el("div", { class: "card" }, [
       MN.el("h3", { text: "提出ファイルを作る" }),
       MN.el("p", { text: "ファイル名は「" + MN.submit.fileName(k) + "」です。名前や学籍番号は入りません。作り直したときは、新しいファイルを提出してください。" }),
+      MN.el("p", { text: "途中でも作れます。作ったファイルは保存用にもなります（あとで作り直して、提出し直せます）。" }),
       MN.el("div", { class: "actions" }, makeBtn),
       msg
     ]));
