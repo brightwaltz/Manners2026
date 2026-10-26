@@ -114,6 +114,18 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 0; }
 
+/* ① 学ぶ */
+.learn-card h3 { margin-top: 0; }
+.learn-ul { padding-left: 24px; margin: 0 0 12px; }
+.learn-ul li { margin: 0 0 4px; }
+.learn-ex { background: var(--note-bg); border-radius: var(--radius); padding: 10px 16px 12px; margin: 0 0 12px; }
+.learn-ex .ex-label { font-size: 14px; font-weight: bold; color: var(--muted); margin: 0 0 4px; }
+.learn-ex .ex-line { white-space: pre-wrap; }
+.learn-links { list-style: none; padding: 0; margin: 0; }
+.learn-links li { padding: 9px 0; }
+.learn-links a { padding: 10px 0; }
+.learn-links a::after { content: "（別のタブで開きます）"; display: inline-block; font-size: 14px; color: var(--muted); margin-left: 4px; }
+
 /* トップの課題カード */
 .kadai-list { display: grid; gap: 12px; padding: 0; margin: 0; list-style: none; }
 .kadai-list a.card { display: block; color: var(--text); text-decoration: none; margin: 0; }

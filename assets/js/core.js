@@ -424,12 +424,45 @@
 
   /* ---------- 課題ページの組み立て ---------- */
 
-  // learn: [{ h: "見出し", p: ["段落", ...] }]（data/kN.json の任意のキー）
+  // learn: [{ h: "見出し", p: ["段落"], ul: ["箇条書き"], ex: ["例の行"], links: [{ t, href }] }]
+  // （data/kN.json の任意のキー）。h → p → ul → ex → links の順に、すべて文字列として表示する（HTML は使わない）
+  MN.safeHttps = function (href) {
+    try {
+      var u = new URL(String(href));
+      return u.protocol === "https:" ? u.href : null;
+    } catch (e) {
+      return null;
+    }
+  };
+
   MN.renderLearn = function (el, learn) {
     MN.clear(el);
-    learn.forEach(function (sec) {
-      if (sec.h) el.appendChild(MN.el("h3", { text: sec.h }));
-      (sec.p || []).forEach(function (p) { el.appendChild(MN.textWithBreaks(MN.el("p"), p)); });
+    learn.forEach(function (sec, i) {
+      var card = MN.el("div", { class: "card learn-card", "data-learn": String(i + 1) });
+      card.appendChild(MN.el("h3", { text: (i + 1) + ". " + (sec.h || "") }));
+      (sec.p || []).forEach(function (p) { card.appendChild(MN.textWithBreaks(MN.el("p"), p)); });
+      if (sec.ul && sec.ul.length) {
+        card.appendChild(MN.el("ul", { class: "learn-ul" }, sec.ul.map(function (t) {
+          return MN.textWithBreaks(MN.el("li"), t);
+        })));
+      }
+      if (sec.ex && sec.ex.length) {
+        card.appendChild(MN.el("div", { class: "learn-ex", "data-role": "learn-ex" }, [
+          MN.el("p", { class: "ex-label", text: "例" }),
+          MN.el("div", { class: "ex-body" }, sec.ex.map(function (line) {
+            return MN.el("div", { class: "ex-line", text: line === "" ? "\u00a0" : line });
+          }))
+        ]));
+      }
+      var links = (sec.links || []).filter(function (l) { return l && MN.safeHttps(l.href); });
+      if (links.length) {
+        card.appendChild(MN.el("ul", { class: "learn-links" }, links.map(function (l) {
+          return MN.el("li", null, MN.el("a", {
+            href: MN.safeHttps(l.href), target: "_blank", rel: "noopener", text: l.t || l.href
+          }));
+        })));
+      }
+      el.appendChild(card);
     });
   };
 

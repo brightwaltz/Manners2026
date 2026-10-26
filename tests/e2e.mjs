@@ -375,6 +375,37 @@ async function main() {
     const nFields = await checkFields(`demo ${width}px`);
     ok(`demo（${width}px）：組み立て・入力欄 ${nFields} 個に個人情報を求める語なし・横スクロールなし`);
 
+    // ① 学ぶ：番号付きのカード、h → p → ul → ex → links、https 以外のリンクは出さない
+    if (pi === 0) {
+      const learn = await page.eval(`Array.from(document.querySelectorAll("#learn .learn-card")).map(c => ({
+        h: c.querySelector("h3").textContent,
+        order: Array.from(c.children).map(e => e.tagName + (e.className ? "." + e.className : "")),
+        ul: Array.from(c.querySelectorAll(".learn-ul li")).map(e => e.textContent),
+        exLabel: c.querySelector(".learn-ex .ex-label")?.textContent || null,
+        ex: Array.from(c.querySelectorAll(".learn-ex .ex-line")).map(e => e.textContent),
+        links: Array.from(c.querySelectorAll(".learn-links a")).map(a => ({ t: a.textContent, href: a.getAttribute("href"), target: a.target, rel: a.rel }))
+      }))`);
+      assert.equal(learn.length, DEMO.learn.length, "学ぶのカードの数");
+      DEMO.learn.forEach((sec, i) => {
+        const c = learn[i];
+        assert.equal(c.h, `${i + 1}. ${sec.h}`);
+        assert.deepEqual(c.ul, sec.ul || []);
+        assert.deepEqual(c.ex, sec.ex || []);
+        assert.equal(c.exLabel, sec.ex ? "例" : null);
+        assert.deepEqual(c.links, (sec.links || []).map((l) => ({ t: l.t, href: new URL(l.href).href, target: "_blank", rel: "noopener" })));
+        const expected = ["H3", ...(sec.p || []).map(() => "P"), ...(sec.ul ? ["UL.learn-ul"] : []), ...(sec.ex ? ["DIV.learn-ex"] : []), ...(sec.links ? ["UL.learn-links"] : [])];
+        assert.deepEqual(c.order, expected, "学ぶの表示順");
+      });
+      assert.ok(DEMO.learn.some((s) => s.ul && s.ex && s.links), "デモに ul・ex・links を使った例がありません");
+      const bad = await page.eval(`(() => {
+        const d = document.createElement("div");
+        MN.renderLearn(d, [{ h: "x", links: [{ t: "a", href: "http://example.com/" }, { t: "b", href: "javascript:alert(1)" }, { t: "c", href: "https://example.com/ok" }], p: ["<b>太字</b>"] }]);
+        return { hrefs: Array.from(d.querySelectorAll("a")).map(a => a.getAttribute("href")), bold: d.querySelectorAll("b").length, p: d.querySelector("p").textContent };
+      })()`);
+      assert.deepEqual(bad, { hrefs: ["https://example.com/ok"], bold: 0, p: "<b>太字</b>" });
+      ok("① 学ぶ：番号付きカード、h→p→ul→ex→links の順、「例」の枠、リンクは https のみ・別タブ、HTML は文字のまま");
+    }
+
     for (const g of games) {
       const r = await page.call(pagePlay, g, mode);
       assert.deepEqual(r.overflow, [], `${g.id}（${width}px）：横スクロール ${r.overflow}`);
