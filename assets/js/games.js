@@ -51,9 +51,9 @@
       ]));
     });
     (item.chunks || []).forEach(function (c, i) {
-      if (c.t === "\n") { doc.appendChild(el("br")); return; }
       if (c.note) { doc.appendChild(MN.textWithBreaks(el("span", { class: "note", "data-note": "" }), c.t)); return; }
-      if (!String(c.t).trim()) { doc.appendChild(document.createTextNode(c.t)); return; }
+      // 空白・改行だけのかたまり（"\n\n" など）も改行を <br> にする（段落の間の空き行を残す）
+      if (!String(c.t).trim()) { MN.textWithBreaks(doc, c.t); return; }
       doc.appendChild(tappable("c" + i, c.t));
     });
     box.appendChild(doc);
@@ -107,8 +107,8 @@
         var ok = r.found.indexOf(e.id) >= 0;
         errUl.appendChild(el("li", { "data-err": e.id }, [
           mark(ok, (ok ? "見つけた" : "見落とし") + "：" + (e.cat || "")),
-          el("div", { text: e.why || "" }),
-          e.fix ? el("div", null, [el("strong", { text: "直し方：" }), e.fix]) : null
+          MN.textWithBreaks(el("div", { class: "pre" }), e.why || ""),
+          e.fix ? MN.textWithBreaks(el("div", { class: "pre" }, el("strong", { text: "直し方：" })), e.fix) : null
         ]));
       });
       fb.push(errUl);
@@ -125,7 +125,7 @@
         if (!(item.missing_answer || []).length) mUl.appendChild(el("li", { text: "この問題には足りないものはありません。" }));
         fb.push(el("h4", { text: "足りないもの" }));
         fb.push(mUl);
-        if (item.missing_explain) fb.push(MN.textWithBreaks(el("p"), item.missing_explain));
+        if (item.missing_explain) fb.push(MN.textWithBreaks(el("p", { class: "pre" }), item.missing_explain));
       }
       box.insertBefore(feedback(r.score === r.max, fb), actions);
       done(answer, r);

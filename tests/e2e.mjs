@@ -403,7 +403,31 @@ async function main() {
         return { hrefs: Array.from(d.querySelectorAll("a")).map(a => a.getAttribute("href")), bold: d.querySelectorAll("b").length, p: d.querySelector("p").textContent };
       })()`);
       assert.deepEqual(bad, { hrefs: ["https://example.com/ok"], bold: 0, p: "<b>太字</b>" });
-      ok("① 学ぶ：番号付きカード、h→p→ul→ex→links の順、「例」の枠、リンクは https のみ・別タブ、HTML は文字のまま");
+      // after は ul の直後（ex の前）。num: false のカードは番号なしで、数え方からも外す。例の 2 行目からは上に間をあける
+      const more = await page.eval(`(() => {
+        const d = document.createElement("div");
+        document.getElementById("learn").appendChild(d);
+        MN.renderLearn(d, [
+          { h: "A", p: ["本文"], ul: ["箇条"], after: ["あと1", "あと2"], ex: ["例1", "例2"], links: [{ t: "L", href: "https://example.com/" }] },
+          { h: "B", num: false, p: ["番号なし"] },
+          { h: "C" }
+        ]);
+        const cards = Array.from(d.querySelectorAll(".learn-card"));
+        const lines = cards[0].querySelectorAll(".ex-line");
+        const out = {
+          h: cards.map(c => c.querySelector("h3").textContent),
+          order: Array.from(cards[0].children).map(e => e.tagName + (e.className ? "." + e.className : "")),
+          after: Array.from(cards[0].querySelectorAll(".learn-after")).map(e => e.textContent),
+          gap: [parseFloat(getComputedStyle(lines[0]).marginTop), parseFloat(getComputedStyle(lines[1]).marginTop)]
+        };
+        d.remove();
+        return out;
+      })()`);
+      assert.deepEqual(more.h, ["1. A", "B", "2. C"], "num: false の番号");
+      assert.deepEqual(more.order, ["H3", "P", "UL.learn-ul", "P.learn-after", "P.learn-after", "DIV.learn-ex", "UL.learn-links"], "after の位置");
+      assert.deepEqual(more.after, ["あと1", "あと2"]);
+      assert.ok(more.gap[0] === 0 && more.gap[1] >= 6, "例の行の間があいていません：" + more.gap);
+      ok("① 学ぶ：番号付きカード、h→p→ul→after→ex→links の順、num: false は番号なし、例の行の間をあける、「例」の枠、リンクは https のみ・別タブ、HTML は文字のまま");
     }
 
     for (const g of games) {
@@ -475,12 +499,20 @@ async function main() {
     for (const k of [1, 2, 3]) {
       await page.goto(`/k${k}/index.html`);
       await sleep(300);
+      const errBefore = page.errors.length;
+      await waitFor(() => page.eval(`!!document.querySelector('#submit [data-action="export"]')`), 10000, `k${k} の組み立て`);
       const s = await page.eval(`({
         h1: document.querySelector("h1").textContent,
-        pending: ["learn","games","compose","submit"].every(id => document.getElementById(id) && document.getElementById(id).querySelector(".pending")),
+        pending: document.querySelectorAll("main .pending").length,
+        learn: document.querySelectorAll("#learn .learn-card").length,
+        games: document.querySelectorAll("#games [data-game]").length,
+        compose: document.querySelectorAll("#compose [data-compose]").length,
+        submit: !!document.querySelector('#submit [data-action="export"]'),
         nav: document.querySelectorAll(".steps a").length
       })`);
-      assert.ok(s.pending, `k${k}：準備中の表示がありません`);
+      assert.deepEqual(page.errors.slice(errBefore), [], `k${k}：JS のエラー`);
+      assert.equal(s.pending, 0, `k${k}：準備中の表示が残っています`);
+      assert.ok(s.learn > 0 && s.games > 0 && s.compose > 0 && s.submit, `k${k}：①〜④ に中身がありません ${JSON.stringify(s)}`);
       assert.equal(s.nav, 4);
       await page.noHScroll(`k${k} ${width}px`);
       await checkFields(`k${k}`);
@@ -490,7 +522,7 @@ async function main() {
   await page.goto("/index.html");
   const st2 = await page.eval(`document.querySelector('[data-status="2"]').textContent`);
   assert.equal(st2, "進行中");
-  ok("トップと k1〜k3（375px・1280px）：準備中の表示、ナビ 4 つ、横スクロールなし、進み具合の表示");
+  ok("トップと k1〜k3（375px・1280px）：k1〜k3 は JS のエラーなく開き ①〜④ に中身がある、ナビ 4 つ、横スクロールなし、進み具合の表示");
 
   // 外部への通信がない
   const external = page.requests.filter((u) => !u.startsWith(base) && !/^(data|blob|about):/.test(u));

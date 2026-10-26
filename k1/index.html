@@ -11,6 +11,7 @@
   <div class="wrap">
     <a class="home" href="../">← 研究と仕事のマナー（トップ）</a>
     <h1>課題1 メールのマナーを学ぶ</h1>
+    <p class="lead">先生や会社に送るメールには、決まった形があります。形を覚えると、相手に早く正確に伝わり、返事ももらいやすくなります。</p>
     <nav aria-label="この課題の段">
       <ul class="steps">
         <li><a href="#learn-sec">① 学ぶ</a></li>
@@ -50,14 +51,83 @@
 <script>
   // 課題1の組み立て。問題と解説は data/k1.json に入れる。
   // 作るのフォーム（checks は関数なので JSON ではなくここに書く）
+  // 文字列の点検に使う小さな道具
+  function lines(t) { return String(t || "").split("\n"); }
+  // 先頭の空白・空行を除いた最初の n 行（各行の前後の空白も除く）
+  function firstLines(t, n) { return lines(String(t || "").replace(/^\s+/, "")).slice(0, n).map(function (l) { return l.trim(); }); }
+  function lastLines(t, n) { return lines(String(t || "").replace(/\s+$/, "")).slice(-n).join("\n"); }
+  function filled(t, n) { return String(t || "").trim().length >= n; }
+
   var COMPOSE = [
-    // { id: "...", title: "...", intro: "...", fields: [...], checks: [...] }
+    {
+      id: "mail",
+      title: "メールを書く",
+      intro: "次の場面から1つ選び、先生や会社に送るメールを書きます。名前は架空の人物「玉川 みらい」（工学部 1年、学籍番号 99Z9999、mirai.tamagawa@example.ac.jp）を使います。自分の名前は書きません。",
+      fields: [
+        { id: "scene", label: "場面", type: "radio", required: true,
+          options: [
+            { id: "A", t: "A：レポートの締切（11月20日）に、体調不良で3日ほど間に合いそうにない。百瀬先生に延長をお願いする。" },
+            { id: "B", t: "B：授業を欠席した。WebClass に配布資料が見当たらないので、百瀬先生に受け取り方を聞く。" },
+            { id: "C", t: "C：会社（株式会社サンプル工業 人事部 一ノ瀬様）とのインターンシップ面談（11月10日 14時）が、大学の試験と重なった。日程の変更をお願いする。" },
+            { id: "D", t: "D：研究室の見学をしたい。まだ話したことのない九条先生に、初めてメールでお願いする。" }
+          ] },
+        { id: "to", label: "宛先", type: "text", max: 80, placeholder: "例：momose@example.ac.jp" },
+        { id: "subject", label: "件名", type: "text", max: 80 },
+        { id: "body", label: "本文（宛名から署名まで）", type: "textarea", rows: 14, max: 1200 }
+      ],
+      checks: [
+        { id: "subject_len", label: "件名が8字以上ある", test: function (v) { return v.subject.trim().length >= 8; } },
+        // 会社あては「株式会社サンプル工業」「人事部 一ノ瀬様」の 2 行に書いてもよい
+        { id: "greeting", label: "宛名がある（本文の最初の3行のどれかが「先生」か「様」で終わる）", test: function (v) {
+          return firstLines(v.body, 3).some(function (l) { return /(先生|様)$/.test(l); });
+        } },
+        { id: "no_double", label: "「先生様」「様 御中」「様御中」が入っていない", test: function (v) { return !/先生様|様\s*御中/.test(v.subject + "\n" + v.body); } },
+        { id: "self_intro", label: "名乗りがある（本文の最初の5行に「玉川」が入っている）", test: function (v) { return firstLines(v.body, 5).join("\n").indexOf("玉川") >= 0; } },
+        { id: "closing", label: "「よろしくお願い」が入っている", test: function (v) { return v.body.indexOf("よろしくお願い") >= 0; } },
+        { id: "signature", label: "署名がある（本文の最後の3行に「99Z9999」か「@example」が入っている）", test: function (v) { var t = lastLines(v.body, 3); return t.indexOf("99Z9999") >= 0 || t.indexOf("@example") >= 0; } },
+        { id: "body_len", label: "本文が150字以上600字以下", test: function (v) { var n = v.body.trim().length; return n >= 150 && n <= 600; } }
+      ]
+    },
+    {
+      id: "ngmail",
+      title: "NGメール問題を作る",
+      intro: "今度はあなたが問題を作る番です。間違いを3つ以上わざと入れたメールを作り、その答えを書きます。よくできた問題は、名前を出さずに1月12日の授業で紹介し、来年度のゲームに加えることがあります。",
+      fields: [
+        { id: "scene", label: "場面の説明（誰が誰に、何のために送るメールか）", type: "text", max: 200 },
+        { id: "subject", label: "件名", type: "text", max: 80 },
+        { id: "body", label: "本文", type: "textarea", rows: 12, max: 1200 },
+        { id: "answer1", label: "間違い1（どこが・なぜだめか・どう直すか）", type: "textarea", rows: 3, max: 300 },
+        { id: "answer2", label: "間違い2", type: "textarea", rows: 3, max: 300 },
+        { id: "answer3", label: "間違い3", type: "textarea", rows: 3, max: 300 },
+        { id: "answer4", label: "間違い4（任意）", type: "textarea", rows: 3, max: 300 }
+      ],
+      checks: [
+        { id: "scene_len", label: "場面が書けている（10字以上）", test: function (v) { return filled(v.scene, 10); } },
+        { id: "body_len", label: "本文が100字以上ある", test: function (v) { return filled(v.body, 100); } },
+        { id: "answers", label: "答えが3つ以上書けている（各20字以上）", test: function (v) {
+          return ["answer1", "answer2", "answer3", "answer4"].filter(function (f) { return filled(v[f], 20); }).length >= 3;
+        } }
+      ]
+    },
+    {
+      id: "aimail",
+      title: "生成AIのメールを直す（任意）",
+      intro: "生成AIを使っている人向けの任意の課題です。作る1と同じ場面のメールを生成AIに書かせ、そのまま送らないところを2つ挙げて、直し方を書きます。生成AIを使っていない人は、空のままでかまいません。",
+      fields: [
+        { id: "ai_text", label: "生成AIが書いたメール（貼り付け）", type: "textarea", rows: 10, max: 1500 },
+        { id: "fix1", label: "直すところ1（どこを・なぜ・どう直すか）", type: "textarea", rows: 3, max: 300 },
+        { id: "fix2", label: "直すところ2", type: "textarea", rows: 3, max: 300 }
+      ],
+      checks: [
+        { id: "fixes", label: "直すところが2つ書けている", test: function (v) { return filled(v.fix1, 1) && filled(v.fix2, 1); } }
+      ]
+    }
   ];
   MN.page.boot({
     kadai: 1,
     data: "../data/k1.json",
-    compose: COMPOSE
-    // submit: { requiredGames: ["find", "choice"], requiredCompose: ["..."] }  // 省略時はデータの全ゲームと COMPOSE の全フォーム
+    compose: COMPOSE,
+    submit: { requiredGames: ["find", "choice", "channel"], requiredCompose: ["mail", "ngmail"] }
   });
 </script>
 </body>

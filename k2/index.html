@@ -11,6 +11,7 @@
   <div class="wrap">
     <a class="home" href="../">← 研究と仕事のマナー（トップ）</a>
     <h1>課題2 引用のルールを学ぶ</h1>
+    <p class="lead">レポートや発表では、他人の文章・図・データを使う場面がたくさんあります。決まったルールを守れば使えますが、守らないと盗用（剽窃）になり、研究でも仕事でも信用を失います。</p>
     <nav aria-label="この課題の段">
       <ul class="steps">
         <li><a href="#learn-sec">① 学ぶ</a></li>
@@ -50,14 +51,77 @@
 <script>
   // 課題2の組み立て。問題と解説は data/k2.json に入れる。
   // 作るのフォーム（checks は関数なので JSON ではなくここに書く）
+  var KINDS = [{ id: "book", t: "本" }, { id: "paper", t: "論文" }, { id: "web", t: "Webページ" }, { id: "news", t: "新聞記事" }];
+  var ANSWERS = [{ id: "ok", t: "OK" }, { id: "ng", t: "NG" }, { id: "cond", t: "条件つきでOK" }];
+  // 全角の数字・記号も半角にそろえてから調べる
+  function norm(s) { s = String(s || ""); return s.normalize ? s.normalize("NFKC") : s; }
+  function has(s) { var t = norm(s); return Array.prototype.slice.call(arguments, 1).every(function (x) { return t.indexOf(x) >= 0; }); }
+  function hasYear(s) { return /(^|[^0-9])[0-9]{4}(?![0-9])/.test(norm(s)); }
+  // 種類ごとの形式：本『』／論文「」と『』／Webページ http と閲覧日／新聞記事『』と年・月・日
+  function kindOk(kind, ref) {
+    if (kind === "book") return has(ref, "『", "』");
+    if (kind === "paper") return has(ref, "「", "」", "『", "』");
+    if (kind === "web") return has(ref, "http", "閲覧日");
+    if (kind === "news") return has(ref, "『", "』", "年", "月", "日");
+    return false;
+  }
+  function quoted(s) { return /^「[\s\S]*[^\s」][\s\S]*」$/.test(String(s || "").trim()); }
+  function srcFields(n, example) {
+    return [
+      { id: "src" + n + "_kind", label: "資料" + n + "：種類", type: "select", options: KINDS },
+      { id: "src" + n + "_ref", label: "資料" + n + "：出典（このサイトの形式で）", type: "textarea", rows: 2, max: 300, placeholder: example },
+      { id: "src" + n + "_quote", label: "資料" + n + "：引用する文（「」でくくって、原文のまま）", type: "textarea", rows: 3, max: 300 },
+      { id: "src" + n + "_use", label: "資料" + n + "：その引用を使って、自分の考えを述べる2〜4文（本文中での出典の示し方も使う）", type: "textarea", rows: 4, max: 500 }
+    ];
+  }
+  function srcChecks(n) {
+    var p = "src" + n;
+    return {
+      year: { id: p + "_year", label: "資料" + n + "の出典に4桁の年がある", test: function (v) { return hasYear(v[p + "_ref"]); } },
+      form: { id: p + "_form", label: "資料" + n + "の出典が、選んだ種類の形式になっている（本は『』、論文は「」と『』、Webページは http と閲覧日、新聞記事は『』と年・月・日）",
+        test: function (v) { return kindOk(v[p + "_kind"], v[p + "_ref"]); } },
+      quote: { id: p + "_quote", label: "資料" + n + "の引用する文が「」でくくられている", test: function (v) { return quoted(v[p + "_quote"]); } },
+      use: { id: p + "_use", label: "資料" + n + "を使った自分の考えが40字以上ある", test: function (v) { return v[p + "_use"].trim().length >= 40; } }
+    };
+  }
+  var C1 = srcChecks(1), C2 = srcChecks(2);
   var COMPOSE = [
-    // { id: "...", title: "...", intro: "...", fields: [...], checks: [...] }
+    {
+      id: "cite",
+      title: "作る1 引用してみる",
+      intro: "課題3で書くレポートのテーマを選び、そのテーマについて実際の資料を2つ探して、引用の練習をします。ここで書いた出典は、課題3のレポートに読み込めます。資料の探し方は「① 学ぶ」の「資料の探し方」にあります。",
+      fields: [{ id: "theme", label: "課題3のテーマ", type: "radio", required: true, options: MN.THEMES }]
+        .concat(srcFields(1, "例：山本花子（2022）『眠りの科学入門』みどり書房."))
+        .concat(srcFields(2, "例：佐々木一郎（2021）「通学時間と学習時間の関係」『教育データ研究』12巻3号, pp.20-31.")),
+      checks: [
+        { id: "theme", label: "テーマを選んだ", test: function (v) { return !!v.theme; } },
+        C1.year, C2.year,
+        C1.form, C2.form,
+        C1.quote, C2.quote,
+        C1.use, C2.use
+      ]
+    },
+    {
+      id: "judgemake",
+      title: "作る2 ジャッジ問題を作る",
+      intro: "引用ジャッジの問題を、自分で1問作ります。OK・NG・条件つきでOK のどれかが答えになる場面を考え、その理由を書きます。よくできた問題は、名前を出さずに1月12日の授業で紹介し、来年度のゲームに加えることがあります。",
+      fields: [
+        { id: "scene", label: "場面", type: "textarea", rows: 4, max: 300 },
+        { id: "answer", label: "答え", type: "select", options: ANSWERS },
+        { id: "reason", label: "理由（どのルールに当たるか。条件つきなら条件も）", type: "textarea", rows: 4, max: 400 }
+      ],
+      checks: [
+        { id: "scene", label: "場面が30字以上", test: function (v) { return v.scene.trim().length >= 30; } },
+        { id: "answer", label: "答えを選んだ", test: function (v) { return !!v.answer; } },
+        { id: "reason", label: "理由が40字以上", test: function (v) { return v.reason.trim().length >= 40; } }
+      ]
+    }
   ];
   MN.page.boot({
     kadai: 2,
     data: "../data/k2.json",
-    compose: COMPOSE
-    // submit: { requiredGames: ["find", "choice"], requiredCompose: ["..."] }  // 省略時はデータの全ゲームと COMPOSE の全フォーム
+    compose: COMPOSE,
+    submit: { requiredGames: ["judge", "cite", "where"], requiredCompose: ["cite", "judgemake"] }
   });
 </script>
 </body>

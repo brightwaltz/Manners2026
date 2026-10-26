@@ -173,16 +173,18 @@ function checkData(file) {
     }
     return seen;
   };
-  // learn（任意）：h は必須の文字列、p・ul・ex は文字列の配列、links は { t, href } で href は https
+  // learn（任意）：h は必須の文字列、p・ul・after・ex は文字列の配列、links は { t, href } で href は https、
+  // num は false だけ（番号を付けないカード）
   if (d.learn !== undefined) {
     const isStrArr = (a) => Array.isArray(a) && a.every((x) => typeof x === "string");
     if (!Array.isArray(d.learn)) fail(F, "learn が配列ではありません");
     else d.learn.forEach((sec, i) => {
       const L = `learn[${i}]`;
       if (!sec || typeof sec !== "object" || Array.isArray(sec)) { fail(F, `${L} が object ではありません`); return; }
-      for (const k of Object.keys(sec)) if (!["h", "p", "ul", "ex", "links"].includes(k)) fail(F, `${L}：未知のキー「${k}」`);
+      for (const k of Object.keys(sec)) if (!["h", "p", "ul", "after", "ex", "links", "num"].includes(k)) fail(F, `${L}：未知のキー「${k}」`);
       if (typeof sec.h !== "string" || !sec.h.trim()) fail(F, `${L}：h（見出し）は必須の文字列です`);
-      for (const k of ["p", "ul", "ex"]) if (sec[k] !== undefined && !isStrArr(sec[k])) fail(F, `${L}：${k} は文字列の配列にしてください`);
+      if (sec.num !== undefined && sec.num !== false) fail(F, `${L}：num は false だけ使えます（番号を付けないカード）`);
+      for (const k of ["p", "ul", "after", "ex"]) if (sec[k] !== undefined && !isStrArr(sec[k])) fail(F, `${L}：${k} は文字列の配列にしてください`);
       if (sec.links !== undefined) {
         if (!Array.isArray(sec.links)) fail(F, `${L}：links は配列にしてください`);
         else sec.links.forEach((l, j) => {

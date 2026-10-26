@@ -1,7 +1,10 @@
 /*
  * 自由記述フォーム部品（ライブ点検つき）
- * MN.compose.mount(el, kadaiNum, { id, title, intro, fields: [...], checks: [...] })
+ * MN.compose.mount(el, kadaiNum, { id, title, kind?, intro, fields: [...], checks: [...] })
  * 入力のたびに localStorage へ保存する。checks は目安の表示だけで、点数にはしない。
+ * kind は提出の進み具合での呼び名（既定「作る」）。
+ * fields の type は text・textarea・select・radio。placeholder（text・textarea）、required（true なら
+ * 未入力のとき提出の進み具合に欄名を出す）を使える。radio の保存値は選んだ選択肢の id。
  */
 (function (global) {
   "use strict";
@@ -13,10 +16,12 @@
   function defaults(def) {
     var v = {};
     (def.fields || []).forEach(function (f) {
-      v[f.id] = f.type === "select" ? "" : (f.prefill || "");
+      v[f.id] = isChoice(f) ? "" : (f.prefill || "");
     });
     return v;
   }
+
+  function isChoice(f) { return f.type === "select" || f.type === "radio"; }
 
   function values(k, def) {
     var saved = MN.creative.get(k, def.id) || {};
@@ -36,8 +41,43 @@
     return (def.fields || []).some(function (f) {
       var s = String(saved[f.id] || "");
       if (!s.trim()) return false;
-      return f.type === "select" ? true : s.trim() !== String(f.prefill || "").trim();
+      return isChoice(f) ? true : s.trim() !== String(f.prefill || "").trim();
     });
+  }
+
+  // required の欄のうち、まだ空のもののラベル（定義が未登録なら空配列）
+  function missingRequired(k, fid) {
+    var def = registry[k] && registry[k][fid];
+    if (!def) return [];
+    var v = values(k, def);
+    return (def.fields || []).filter(function (f) {
+      return f.required && !String(v[f.id] || "").trim();
+    }).map(function (f) { return f.label; });
+  }
+
+  // radio：選択肢を縦に並べる。まとめの fieldset に data-field を付け、value で選んだ id を読み書きできるようにする
+  // （select と同じように扱えるようにするため。未選択は ""）
+  function radioGroup(domId, f) {
+    var group = el("fieldset", { class: "radio-field", id: domId });
+    group.appendChild(el("legend", { class: "flabel", text: f.label }));
+    if (f.hint) group.appendChild(el("p", { class: "small muted", id: domId + "-hint", text: f.hint }));
+    var list = el("div", { class: "radio-list" });
+    var inputs = (f.options || []).map(function (o, i) {
+      var r = el("input", { type: "radio", name: domId, id: domId + "-" + i, value: o.id, "data-option": o.id });
+      list.appendChild(el("label", { for: domId + "-" + i }, [r, el("span", { text: o.t })]));
+      return r;
+    });
+    group.appendChild(list);
+    Object.defineProperty(group, "value", {
+      get: function () {
+        var c = inputs.filter(function (r) { return r.checked; })[0];
+        return c ? c.value : "";
+      },
+      set: function (x) {
+        inputs.forEach(function (r) { r.checked = r.value === String(x == null ? "" : x); });
+      }
+    });
+    return group;
   }
 
   function mount(container, k, def) {
@@ -70,6 +110,8 @@
       var input;
       if (f.type === "textarea") {
         input = el("textarea", { id: domId, rows: f.rows || 8 });
+      } else if (f.type === "radio") {
+        input = radioGroup(domId, f);
       } else if (f.type === "select") {
         input = el("select", { id: domId });
         input.appendChild(el("option", { value: "", text: "（選んでください）" }));
@@ -78,11 +120,13 @@
         input = el("input", { type: "text", id: domId, autocomplete: "off" });
       }
       input.setAttribute("data-field", f.id);
-      if (f.max && f.type !== "select") input.setAttribute("maxlength", String(f.max));
+      if (f.max && !isChoice(f)) input.setAttribute("maxlength", String(f.max));
+      if (f.placeholder && !isChoice(f)) input.setAttribute("placeholder", f.placeholder);
+      if (f.required) input.setAttribute(f.type === "radio" ? "aria-required" : "required", f.type === "radio" ? "true" : true);
       if (f.hint) input.setAttribute("aria-describedby", domId + "-hint");
       input.value = v[f.id];
 
-      var count = f.type === "select" ? null : el("div", { class: "count", "data-count": f.id });
+      var count = isChoice(f) ? null : el("div", { class: "count", "data-count": f.id });
       function updateCount() {
         if (!count) return;
         var n = input.value.length;
@@ -90,7 +134,7 @@
         count.classList.toggle("full", !!f.max && n >= f.max);
       }
       input.addEventListener("input", function () {
-        if (f.max && f.type !== "select" && input.value.length > f.max) input.value = input.value.slice(0, f.max);
+        if (f.max && !isChoice(f) && input.value.length > f.max) input.value = input.value.slice(0, f.max);
         v[f.id] = input.value;
         save();
         updateCount();
@@ -103,7 +147,8 @@
       });
       updateCount();
 
-      container.appendChild(el("div", { class: "field" }, [
+      // radio は fieldset の legend が見出し（ラベルとヒントは radioGroup の中）
+      container.appendChild(el("div", { class: "field" }, f.type === "radio" ? [input] : [
         el("label", { class: "flabel", for: domId, text: f.label }),
         f.hint ? el("p", { class: "small muted", id: domId + "-hint", text: f.hint }) : null,
         input,
@@ -123,6 +168,7 @@
   MN.compose = {
     mount: mount,
     isFilled: isFilled,
+    missingRequired: missingRequired,
     // 別の課題のフォームも含め、保存済みの値のオブジェクトを返す（無ければ null）
     read: function (k, fid) {
       var saved = MN.creative.get(k, fid);
@@ -134,6 +180,7 @@
       return d ? values(k, d) : (MN.creative.get(k, fid) || {});
     },
     registered: function (k) { return Object.keys(registry[k] || {}); },
-    title: function (k, fid) { var d = registry[k] && registry[k][fid]; return d ? d.title : null; }
+    title: function (k, fid) { var d = registry[k] && registry[k][fid]; return d ? d.title : null; },
+    kind: function (k, fid) { var d = registry[k] && registry[k][fid]; return d ? (d.kind || "作る") : null; }
   };
 })(window);

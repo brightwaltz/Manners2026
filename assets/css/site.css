@@ -24,6 +24,9 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+/* hidden 属性は、display を指定したクラス（.pool など）より必ず優先する */
+[hidden] { display: none !important; }
+
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
 body {
@@ -50,6 +53,10 @@ p { margin: 0 0 12px; }
 small, .small { font-size: 14px; }
 .muted { color: var(--muted); }
 a { color: var(--accent); }
+.pre { white-space: pre-wrap; }
+
+/* 題の下のリード */
+.lead { font-size: 18px; margin: 0 0 16px; }
 
 /* ヘッダーとページ内ナビ */
 .site-head { background: var(--surface); border-bottom: 1px solid var(--line); }
@@ -121,6 +128,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .learn-ex { background: var(--note-bg); border-radius: var(--radius); padding: 10px 16px 12px; margin: 0 0 12px; }
 .learn-ex .ex-label { font-size: 14px; font-weight: bold; color: var(--muted); margin: 0 0 4px; }
 .learn-ex .ex-line { white-space: pre-wrap; }
+/* 例が 2 行以上のときは、別の例だと分かるように行の間を少しあける */
+.learn-ex .ex-line + .ex-line { margin-top: 8px; }
 .learn-links { list-style: none; padding: 0; margin: 0; }
 .learn-links li { padding: 9px 0; }
 .learn-links a { padding: 10px 0; }
@@ -215,6 +224,24 @@ input[type="text"], textarea, select {
 textarea { line-height: 1.7; resize: vertical; }
 .count { font-size: 14px; color: var(--muted); text-align: right; }
 .count.full { color: var(--ng); }
+/* radio：選択肢を縦に並べ、長い文も折り返して全文を見せる */
+fieldset.radio-field { border: 0; padding: 0; margin: 0; }
+fieldset.radio-field legend.flabel { display: block; font-weight: bold; padding: 0; margin: 0 0 4px; }
+.radio-list { display: grid; gap: 6px; }
+.radio-list label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid #9aa1aa;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+.radio-list label:has(input:checked) { border-color: var(--accent); background: var(--accent-weak); }
+.radio-list input[type="radio"] { width: 22px; height: 22px; flex: none; margin: 2px 0 0; }
+.radio-list label span { min-width: 0; }
 .live-checks { list-style: none; padding: 0; margin: 0; }
 .live-checks li { display: flex; gap: 8px; }
 .live-checks .m { width: 1.4em; flex: none; font-weight: bold; }

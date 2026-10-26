@@ -268,9 +268,19 @@
         if (!MN.attempts.list(k, gid).length) list.push("ゲーム「" + gameTitle(gid) + "」");
       });
       (opts.requiredCompose || []).forEach(function (fid) {
-        if (!(MN.compose && MN.compose.isFilled(k, fid))) list.push("作る「" + ((MN.compose && MN.compose.title(k, fid)) || fid) + "」");
+        var miss = composeMissing(fid);
+        if (miss.length) list.push(composeName(fid) + "（必須の欄：" + miss.join("、") + "）");
+        else if (!(MN.compose && MN.compose.isFilled(k, fid))) list.push(composeName(fid));
       });
       return list;
+    }
+    // 作るの表示名：{kind}「{title}」（kind の既定は「作る」）
+    function composeName(fid) {
+      return ((MN.compose && MN.compose.kind(k, fid)) || "作る") + "「" + ((MN.compose && MN.compose.title(k, fid)) || fid) + "」";
+    }
+    // required の欄のうち、まだ空のもののラベル
+    function composeMissing(fid) {
+      return MN.compose ? MN.compose.missingRequired(k, fid) : [];
     }
     function renderStatus() {
       MN.clear(statusBox);
@@ -284,10 +294,12 @@
         ]));
       });
       (opts.requiredCompose || []).forEach(function (fid) {
-        var ok = MN.compose && MN.compose.isFilled(k, fid);
+        var miss = composeMissing(fid);
+        var ok = !miss.length && MN.compose && MN.compose.isFilled(k, fid);
         tb.appendChild(MN.el("tr", null, [
-          MN.el("th", { text: "作る「" + ((MN.compose && MN.compose.title(k, fid)) || fid) + "」" }),
-          MN.el("td", { class: ok ? "mark-ok" : "mark-ng", text: ok ? "○ 記入あり" : "× まだ" })
+          MN.el("th", { text: composeName(fid) }),
+          MN.el("td", { class: ok ? "mark-ok" : "mark-ng",
+            text: ok ? "○ 記入あり" : miss.length ? "× まだ（必須の欄：" + miss.join("、") + "）" : "× まだ" })
         ]));
       });
       statusBox.appendChild(MN.el("table", { class: "status-table" }, tb));
@@ -409,7 +421,9 @@
       notes.forEach(function (n) { msg.appendChild(MN.el("div", { class: "notice", "data-role": "submit-warning" }, "注意：" + n)); });
       var ok = opts.noDownload ? false : MN.submit.download(MN.submit.fileName(k), text);
       msg.appendChild(MN.el("div", { class: "notice ok" },
-        (ok ? "○ 「" + MN.submit.fileName(k) + "」をダウンロードしました。" : "○ 提出ファイルの中身を作りました。") +
+        // ダウンロードは始めたことしか分からない（保存できたかは確かめられない）
+        (ok ? "○ ダウンロードを始めました。保存したファイルが見つからないときは、下の「提出ファイルの中身」をコピーして、メモ帳などで「" +
+          MN.submit.fileName(k) + "」として保存してください。" : "○ 提出ファイルの中身を作りました。") +
         " WebClass の課題" + k + "の提出欄にアップロードしてください。"));
     }
 
@@ -424,8 +438,9 @@
 
   /* ---------- 課題ページの組み立て ---------- */
 
-  // learn: [{ h: "見出し", p: ["段落"], ul: ["箇条書き"], ex: ["例の行"], links: [{ t, href }] }]
-  // （data/kN.json の任意のキー）。h → p → ul → ex → links の順に、すべて文字列として表示する（HTML は使わない）
+  // learn: [{ h: "見出し", p: ["段落"], ul: ["箇条書き"], after: ["箇条書きのあとの段落"], ex: ["例の行"], links: [{ t, href }], num: false }]
+  // （data/kN.json の任意のキー）。h → p → ul → after → ex → links の順に、すべて文字列として表示する（HTML は使わない）
+  // num: false のカードは番号を付けず、番号の数え方からも外す
   MN.safeHttps = function (href) {
     try {
       var u = new URL(String(href));
@@ -437,15 +452,20 @@
 
   MN.renderLearn = function (el, learn) {
     MN.clear(el);
+    var num = 0;
     learn.forEach(function (sec, i) {
+      // data-learn は並びの位置（番号の有無にかかわらず 1 から）
       var card = MN.el("div", { class: "card learn-card", "data-learn": String(i + 1) });
-      card.appendChild(MN.el("h3", { text: (i + 1) + ". " + (sec.h || "") }));
+      var numbered = sec.num !== false;
+      if (numbered) num++;
+      card.appendChild(MN.el("h3", { text: (numbered ? num + ". " : "") + (sec.h || "") }));
       (sec.p || []).forEach(function (p) { card.appendChild(MN.textWithBreaks(MN.el("p"), p)); });
       if (sec.ul && sec.ul.length) {
         card.appendChild(MN.el("ul", { class: "learn-ul" }, sec.ul.map(function (t) {
           return MN.textWithBreaks(MN.el("li"), t);
         })));
       }
+      (sec.after || []).forEach(function (p) { card.appendChild(MN.textWithBreaks(MN.el("p", { class: "learn-after" }), p)); });
       if (sec.ex && sec.ex.length) {
         card.appendChild(MN.el("div", { class: "learn-ex", "data-role": "learn-ex" }, [
           MN.el("p", { class: "ex-label", text: "例" }),
