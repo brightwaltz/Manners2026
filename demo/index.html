@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>動作確認用デモ｜研究と仕事のマナー</title>
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<header class="site-head">
+  <div class="wrap">
+    <a class="home" href="../">← 研究と仕事のマナー（トップ）</a>
+    <h1>動作確認用デモ</h1>
+    <nav aria-label="この課題の段">
+      <ul class="steps">
+        <li><a href="#learn-sec">① 学ぶ</a></li>
+        <li><a href="#games-sec">② ゲーム</a></li>
+        <li><a href="#compose-sec">③ 作る</a></li>
+        <li><a href="#submit-sec">④ 提出</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<main class="wrap">
+  <section class="stage" id="learn-sec">
+    <h2>① 学ぶ</h2>
+    <div id="learn"><p class="pending">準備中です。</p></div>
+  </section>
+  <section class="stage" id="games-sec">
+    <h2>② ゲーム</h2>
+    <div id="games"><p class="pending">準備中です。</p></div>
+  </section>
+  <section class="stage" id="compose-sec">
+    <h2>③ 作る</h2>
+    <div id="compose"><p class="pending">準備中です。</p></div>
+  </section>
+  <section class="stage" id="submit-sec">
+    <h2>④ 提出</h2>
+    <div id="submit"><p class="pending">準備中です。</p></div>
+  </section>
+  <footer class="site-foot">
+    <p><a href="../">研究と仕事のマナー（トップ）へ戻る</a></p>
+    <p>このページは部品の動作確認用です。ここで作ったファイルは提出しません。</p>
+  </footer>
+</main>
+<script src="../assets/js/scoring.js"></script>
+<script src="../assets/js/core.js"></script>
+<script src="../assets/js/games.js"></script>
+<script src="../assets/js/compose.js"></script>
+<script>
+  // 動作確認用：data/demo.json の各ゲームと、作る・提出を全部並べる
+  var COMPOSE = [
+    {
+      id: "mail",
+      title: "質問メールを書く（デモ）",
+      intro: "先生に質問するメールを書きます。署名は架空の人物「" + MN.PERSONA.short + "」を使ってください。",
+      fields: [
+        { id: "subject", label: "件名", type: "text", max: 80 },
+        { id: "body", label: "本文", type: "textarea", rows: 10, max: 2000,
+          prefill: "山田先生\n\n" + MN.PERSONA.affil + "の" + MN.PERSONA.name + "です。\n\n\n\n" + MN.PERSONA.label },
+        { id: "kind", label: "このメールの用件", type: "select",
+          options: [{ id: "q", t: "質問" }, { id: "r", t: "お願い" }, { id: "t", t: "お礼" }] }
+      ],
+      checks: [
+        { id: "has_subject", label: "件名がある", test: function (v) { return v.subject.trim().length > 0; } },
+        { id: "has_sign", label: "署名がある", test: function (v) { return v.body.indexOf(MN.PERSONA.name) >= 0; } },
+        { id: "polite_end", label: "「よろしくお願いいたします」がある", test: function (v) { return v.body.indexOf("よろしくお願いいたします") >= 0; } }
+      ]
+    },
+    {
+      id: "memo",
+      title: "長い文章（デモ：上限 6000 字）",
+      fields: [{ id: "text", label: "文章", type: "textarea", rows: 8, max: 6000 }],
+      checks: [{ id: "long", label: "200 字以上ある", test: function (v) { return v.text.length >= 200; } }]
+    }
+  ];
+  MN.page.boot({ kadai: 0, data: "../data/demo.json", compose: COMPOSE });
+</script>
+</body>
+</html>

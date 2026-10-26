@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>研究と仕事のマナー（オンライン課題）</title>
+<link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+<main class="wrap">
+  <h1>研究と仕事のマナー（オンライン課題）</h1>
+  <p>研究でも仕事でも必ず必要になる、メールのマナー・引用のルール・レポートの書き方を、ゲームで学びます。各課題は 60〜90 分が目安です。</p>
+
+  <div class="notice">
+    <strong>締切：2026年12月31日（木）23:59</strong><br>
+    提出は WebClass の各課題の提出欄へ、このサイトが作る .txt ファイルを 1 つずつ出します。
+  </div>
+
+  <h2>課題</h2>
+  <ul class="kadai-list">
+    <li><a class="card" href="k1/" data-kadai="1">
+      <span class="k-title">課題1 メールのマナーを学ぶ</span><br>
+      <span>先生や会社の人に送るメールの書き方を身につけます。</span><br>
+      <span class="status" data-status="1">未着手</span>
+    </a></li>
+    <li><a class="card" href="k2/" data-kadai="2">
+      <span class="k-title">課題2 引用のルールを学ぶ</span><br>
+      <span>人の文章や図を使うときの、正しい引用のしかたを学びます。</span><br>
+      <span class="status" data-status="2">未着手</span>
+    </a></li>
+    <li><a class="card" href="k3/" data-kadai="3">
+      <span class="k-title">課題3 レポートの書き方を学ぶ</span><br>
+      <span>読み手に伝わるレポートの組み立てと書き方を学びます。</span><br>
+      <span class="status" data-status="3">未着手</span>
+    </a></li>
+  </ul>
+
+  <h2>進め方と提出のしかた</h2>
+  <ol>
+    <li>各課題のページで、①学ぶ → ②ゲーム → ③作る → ④提出 の順に進めます。</li>
+    <li>④提出で「提出ファイルを作る」を押すと、「マナー課題1_提出.txt」のようなファイルができます。</li>
+    <li>そのファイルを、WebClass の同じ課題の提出欄にアップロードします。課題ごとに 1 つずつ出してください。</li>
+  </ol>
+
+  <h2>記録と個人情報について</h2>
+  <ul>
+    <li>名前や学籍番号は入力しません。</li>
+    <li>記録はこの端末のブラウザの中だけに残ります。どこにも送りません。</li>
+    <li>同じ端末・同じブラウザで続けてください（シークレットモードやプライベートブラウズでは記録が消えます）。</li>
+    <li>提出ファイルにも名前は入りません。</li>
+    <li>署名などで名前が必要な場面では、架空の人物「<span data-persona>工学部 1年 玉川 みらい（学籍番号 99Z9999）</span>」を使います。</li>
+    <li>PC を推奨します（スマホでも進められます）。</li>
+  </ul>
+
+  <h2>生成AIを使ってもよいか</h2>
+  <p>使ってもかまいません。使った場合は、提出のときに、どこで何に使ったかを書いてください。ゲームの点数だけでなく、自分で作った部分を重く見ます。</p>
+
+  <h2>フィードバック</h2>
+  <p>1月12日の授業で、みなさんの結果をもとにフィードバックします。</p>
+
+  <footer class="site-foot">
+    <p>研究と仕事のマナー 2026</p>
+  </footer>
+</main>
+<script src="assets/js/scoring.js"></script>
+<script src="assets/js/core.js"></script>
+<script>
+  MN.firstVisit();
+  document.querySelectorAll("[data-persona]").forEach(function (e) { e.textContent = MN.PERSONA.label; });
+  document.querySelectorAll("[data-status]").forEach(function (e) {
+    var p = MN.progress(Number(e.getAttribute("data-status")));
+    e.textContent = MN.PROGRESS_LABEL[p];
+    if (p !== "todo") e.classList.add(p);
+  });
+</script>
+</body>
+</html>

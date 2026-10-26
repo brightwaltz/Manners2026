@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>課題2 引用のルールを学ぶ｜研究と仕事のマナー</title>
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<header class="site-head">
+  <div class="wrap">
+    <a class="home" href="../">← 研究と仕事のマナー（トップ）</a>
+    <h1>課題2 引用のルールを学ぶ</h1>
+    <nav aria-label="この課題の段">
+      <ul class="steps">
+        <li><a href="#learn-sec">① 学ぶ</a></li>
+        <li><a href="#games-sec">② ゲーム</a></li>
+        <li><a href="#compose-sec">③ 作る</a></li>
+        <li><a href="#submit-sec">④ 提出</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<main class="wrap">
+  <section class="stage" id="learn-sec">
+    <h2>① 学ぶ</h2>
+    <div id="learn"><p class="pending">準備中です。</p></div>
+  </section>
+  <section class="stage" id="games-sec">
+    <h2>② ゲーム</h2>
+    <div id="games"><p class="pending">準備中です。</p></div>
+  </section>
+  <section class="stage" id="compose-sec">
+    <h2>③ 作る</h2>
+    <div id="compose"><p class="pending">準備中です。</p></div>
+  </section>
+  <section class="stage" id="submit-sec">
+    <h2>④ 提出</h2>
+    <div id="submit"><p class="pending">準備中です。</p></div>
+  </section>
+  <footer class="site-foot">
+    <p><a href="../">研究と仕事のマナー（トップ）へ戻る</a></p>
+    <p>締切：2026年12月31日（木）23:59。WebClass の課題2の提出欄に、④で作る .txt ファイルを提出します。</p>
+  </footer>
+</main>
+<script src="../assets/js/scoring.js"></script>
+<script src="../assets/js/core.js"></script>
+<script src="../assets/js/games.js"></script>
+<script src="../assets/js/compose.js"></script>
+<script>
+  // 課題2の組み立て。問題と解説は data/k2.json に入れる。
+  // 作るのフォーム（checks は関数なので JSON ではなくここに書く）
+  var COMPOSE = [
+    // { id: "...", title: "...", intro: "...", fields: [...], checks: [...] }
+  ];
+  MN.page.boot({
+    kadai: 2,
+    data: "../data/k2.json",
+    compose: COMPOSE
+    // submit: { requiredGames: ["find", "choice"], requiredCompose: ["..."] }  // 省略時はデータの全ゲームと COMPOSE の全フォーム
+  });
+</script>
+</body>
+</html>
