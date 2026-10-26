@@ -4,7 +4,7 @@
 // 作る1・作る2 を書いて点検を ○ にし、提出ファイルを作って形を確かめる。
 // E2E_SHOT_DIR を指定すると、375px で各段（学ぶ・問題画面・判定後・結果・作る・提出）の画面を PNG で保存する。
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, existsSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, existsSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:net";
@@ -24,6 +24,13 @@ const GAME_IDS = ["find", "choice", "channel"];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const results = [];
 function ok(msg) { results.push(["○", msg]); console.log("○ " + msg); }
+// E2E_EXPORT_DIR を指定したときだけ、提出ファイルの中身を <E2E_EXPORT_DIR>/<回>/マナー課題N_提出.txt に保存する（通し検査用）
+function saveExport(label, n, text) {
+  if (!process.env.E2E_EXPORT_DIR) return;
+  const dir = join(process.env.E2E_EXPORT_DIR, label);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, `マナー課題${n}_提出.txt`), text);
+}
 
 /* ---------- 起動 ---------- */
 
@@ -593,6 +600,7 @@ async function main() {
     assert.ok(ex.msg.includes("○ ダウンロードを始めました。保存したファイルが見つからないときは、下の「提出ファイルの中身」をコピーして、メモ帳などで「マナー課題1_提出.txt」として保存してください。"), "作成後の案内：" + ex.msg);
     assert.ok(!ex.msg.includes("ダウンロードしました"), "「ダウンロードしました」が残っています");
     const sub = await verifySubmission(ex.text, pi + 1);
+    saveExport(mode === "correct" ? "正解" : "間違い混じり", 1, ex.text);
     assert.equal(sub.consent_showcase, true);
     assert.equal(sub.ai_use.used, aiUsed);
     await page.noHScroll("submit", shots && "#submit-sec");

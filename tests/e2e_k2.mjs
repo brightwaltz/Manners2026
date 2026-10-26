@@ -4,7 +4,7 @@
 // 作る1・2 の点検、提出ファイル、横スクロール、JS のエラーまで確かめる。
 // E2E_SHOT_DIR を指定すると、375px の各段（学ぶ・問題・判定後・結果・作る・提出）を PNG で保存する。
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, existsSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, existsSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:net";
@@ -22,6 +22,13 @@ const FORBIDDEN = /名前|氏名|学籍番号|メールアドレス|name|e-?mail
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const results = [];
 function ok(msg) { results.push(["○", msg]); console.log("○ " + msg); }
+// E2E_EXPORT_DIR を指定したときだけ、提出ファイルの中身を <E2E_EXPORT_DIR>/<回>/マナー課題N_提出.txt に保存する（通し検査用）
+function saveExport(label, n, text) {
+  if (!process.env.E2E_EXPORT_DIR) return;
+  const dir = join(process.env.E2E_EXPORT_DIR, label);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, `マナー課題${n}_提出.txt`), text);
+}
 
 /* ---------- 起動 ---------- */
 
@@ -562,6 +569,7 @@ async function main() {
     const v = S.validateSubmission(sub);
     assert.ok(v.ok, "validateSubmission 不合格：" + v.errors.join(" / "));
     assert.equal(sub.kadai, 2);
+    saveExport(mode === "correct" ? "正解" : "間違い混じり", 2, ex.text);
     assert.equal(sub.data_version, K2.version);
     assert.deepEqual(Object.keys(sub.games), ["judge", "cite", "where"]);
     for (const g of games) {

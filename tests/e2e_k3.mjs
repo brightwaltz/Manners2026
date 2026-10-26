@@ -3,7 +3,7 @@
 // k3/index.html で 3 つのゲームを解き（正解だけ・わざと間違い混じり）、最終レポートのライブ点検、
 // 課題2の出典の読み込み、提出ファイルまで通す。起動と CDP の部分は tests/e2e.mjs と同じ。
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, existsSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, existsSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:net";
@@ -22,6 +22,13 @@ const FORBIDDEN = /名前|氏名|学籍番号|メールアドレス|name|e-?mail
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const results = [];
 function ok(msg) { results.push(["○", msg]); console.log("○ " + msg); }
+// E2E_EXPORT_DIR を指定したときだけ、提出ファイルの中身を <E2E_EXPORT_DIR>/<回>/マナー課題N_提出.txt に保存する（通し検査用）
+function saveExport(label, n, text) {
+  if (!process.env.E2E_EXPORT_DIR) return;
+  const dir = join(process.env.E2E_EXPORT_DIR, label);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, `マナー課題${n}_提出.txt`), text);
+}
 
 /* ---------- 起動 ---------- */
 
@@ -608,6 +615,7 @@ async function main() {
   assert.deepEqual(ex.warnings, [], "警告が出ています：" + ex.warnings.join(" / "));
   assert.ok(ex.status.every((t) => /○/.test(t)), "進み具合：" + ex.status.join(" / "));
   const sub = await verifySubmission(ex.text);
+  saveExport("間違い混じり", 3, ex.text); // 1 回目は正解だけ、2 回目は間違い混じりの挑戦が入る
   const rep = sub.creative.report;
   for (const k of Object.keys(REPORT)) {
     const want = k === "refs" ? REPORT.refs + "\n" + K2_CITE.src2_ref : REPORT[k];
