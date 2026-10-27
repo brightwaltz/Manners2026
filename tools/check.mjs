@@ -26,7 +26,7 @@ function walk(dir, exts, out = []) {
 }
 
 // 公開するファイルだけを対象にする（tools/ と tests/ は公開物ではない）
-const SITE_DIRS = ["assets", "data", "demo", "k1", "k2", "k3"];
+const SITE_DIRS = ["assets", "data", "demo", "guide", "k1", "k2", "k3"];
 const htmlFiles = [join(ROOT, "index.html"), ...SITE_DIRS.flatMap((d) => walk(join(ROOT, d), [".html"]))].filter(existsSync);
 const cssFiles = SITE_DIRS.flatMap((d) => walk(join(ROOT, d), [".css"]));
 const jsFiles = SITE_DIRS.flatMap((d) => walk(join(ROOT, d), [".js", ".mjs"]));
