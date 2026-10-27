@@ -3,6 +3,7 @@
  * 動きは状態の切り替えにだけ使い（200〜500ms）、prefers-reduced-motion: reduce では止める。 */
 
 #film video { display: block; width: 100%; max-width: 100%; height: auto; border-radius: var(--radius); background: #000; }
+.g-credit { font-size: 14px; color: var(--muted); margin: 6px 0 0; }
 
 .g-guide { margin: 24px 0 0; }
 .g-count {

@@ -107,8 +107,8 @@ async function newPage(cdp, base) {
     if (m.method === "Runtime.consoleAPICalled" && m.params.type === "error") page.errors.push("console.error：" + m.params.args.map((a) => a.value ?? a.description).join(" "));
     if (m.method === "Log.entryAdded" && m.params.entry.level === "error") {
       const e = m.params.entry;
-      // 動画とポスターはまだ置いていないので 404 は想定どおり。favicon.ico も同じ
-      if (!(e.source === "network" && /\/guide\/orientation\.(mp4|jpg)$|\/favicon\.ico$/.test(e.url || ""))) page.errors.push("Log：" + e.text + " " + (e.url || ""));
+      // ブラウザが自動で取りに行く favicon.ico の 404 は想定どおり（動画とポスターの 404 は不合格）
+      if (!(e.source === "network" && /\/favicon\.ico$/.test(e.url || ""))) page.errors.push("Log：" + e.text + " " + (e.url || ""));
     }
     if (m.method === "Network.requestWillBeSent") page.requests.push(m.params.request.url);
     if (m.method === "Page.loadEventFired") page.loaded++;
@@ -232,10 +232,26 @@ async function main() {
   const before = await page.call(pageStorage);
   await page.reload();
 
-  // 動画のファイルがないので、枠は隠れたまま
-  await sleep(500);
-  assert.equal(await page.eval(`document.getElementById("film").hidden`), true, "動画のファイルがないのに #film が出ています");
-  ok("動画のファイルがないとき #film は hidden のまま");
+  // 動画があるので枠が出る。長さは約60秒、ポスターも読み込める
+  await waitFor(() => page.eval(`!document.getElementById("film").hidden`), 10000, "#film の表示");
+  const film = await page.eval(`(async () => {
+    const v = document.querySelector("#film video");
+    const img = new Image();
+    const poster = await new Promise((res) => { img.onload = () => res(img.naturalWidth); img.onerror = () => res(0); img.src = v.poster; });
+    const credit = Array.from(document.querySelectorAll("#film .g-credit a")).map(a => a.getAttribute("href"));
+    return { duration: v.duration, poster, posterSrc: v.getAttribute("poster"), credit: Array.from(new Set(credit)).sort(), text: document.querySelector("#film .g-credit").textContent,
+      fs: getComputedStyle(document.querySelector("#film .g-credit")).fontSize };
+  })()`);
+  assert.ok(film.duration >= 59 && film.duration <= 61, "動画の長さ：" + film.duration);
+  assert.ok(film.poster > 0, "ポスター（" + film.posterSrc + "）が読み込めません");
+  assert.deepEqual(film.credit, [
+    "https://creativecommons.org/licenses/by/4.0/",
+    "https://freesound.org/people/MattRuthSound/sounds/562094",
+    "https://freesound.org/people/dersuperanton/sounds/433649"
+  ], "クレジットのリンク");
+  assert.equal(film.text, "効果音：“Plopp Bubble popping” by dersuperanton（CC BY 4.0）、“Wood tapping drumsticks hitting 001.wav” by MattRuthSound（CC BY 4.0）、ほか CC0 の素材（Freesound）。");
+  assert.equal(film.fs, "14px");
+  ok(`#film が表示される：動画 ${film.duration.toFixed(2)} 秒、ポスター幅 ${film.poster}px、クレジットのリンク 3 つ（14px）`);
 
   // 1 回分の操作（幅と reduced-motion を変えて繰り返す）
   async function runAll(width, reduce) {
